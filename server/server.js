@@ -37,6 +37,29 @@ app.use(express.json());
 app.use(cookieParser());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Database connection for Serverless / Cloud Functions
+let isConnected = false;
+async function connectDB() {
+  if (isConnected || mongoose.connection.readyState === 1) {
+    return;
+  }
+  if (process.env.MONGO_URI) {
+    await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 5000 });
+    isConnected = true;
+    console.log('✅ MongoDB Atlas connected');
+  }
+}
+
+// Ensure DB is connected for serverless invocations
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+  } catch (err) {
+    console.warn('DB connection notice:', err.message);
+  }
+  next();
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
@@ -90,4 +113,8 @@ async function startServer() {
   }
 }
 
-startServer();
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = app;

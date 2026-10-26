@@ -41,16 +41,19 @@ router.post('/', protect, async (req, res) => {
     await product.save();
 
     // Emit to socket room
-    req.app.get('io').to(`product:${productId}`).emit('new_bid', {
-      bid: {
-        id: bid._id,
-        amount: bid.amount,
-        bidder: { name: req.user.name, enrollmentNo: req.user.enrollmentNo },
-        createdAt: bid.createdAt,
-      },
-      currentBid: product.currentBid,
-      bidCount: product.bidCount,
-    });
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`product:${productId}`).emit('new_bid', {
+        bid: {
+          id: bid._id,
+          amount: bid.amount,
+          bidder: { name: req.user.name, enrollmentNo: req.user.enrollmentNo },
+          createdAt: bid.createdAt,
+        },
+        currentBid: product.currentBid,
+        bidCount: product.bidCount,
+      });
+    }
 
     res.status(201).json({ message: 'Bid placed', currentBid: product.currentBid });
   } catch (err) {
@@ -92,11 +95,14 @@ router.post('/:bidId/accept', protect, async (req, res) => {
     await product.save();
 
     // Notify winning bidder
-    req.app.get('io').to(`user:${bid.bidder}`).emit('bid_accepted', {
-      productId: product._id,
-      productTitle: product.title,
-      amount: bid.amount,
-    });
+    const acceptIo = req.app.get('io');
+    if (acceptIo) {
+      acceptIo.to(`user:${bid.bidder}`).emit('bid_accepted', {
+        productId: product._id,
+        productTitle: product.title,
+        amount: bid.amount,
+      });
+    }
 
     res.json({ message: 'Bid accepted. Buyer notified to complete payment.' });
   } catch (err) {

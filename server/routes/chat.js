@@ -53,7 +53,10 @@ router.post('/', protect, async (req, res) => {
     ]);
 
     // Emit to receiver's socket room
-    req.app.get('io').to(`user:${receiverId}`).emit('new_message', populated);
+    const chatIo = req.app.get('io');
+    if (chatIo) {
+      chatIo.to(`user:${receiverId}`).emit('new_message', populated);
+    }
 
     res.status(201).json(populated);
   } catch (err) {
