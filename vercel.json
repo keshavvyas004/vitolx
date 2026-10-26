@@ -41,7 +41,7 @@
       }
     },
     {
-      "source": "/(.*)",
+      "source": "/:path*",
       "destination": {
         "service": "client",
         "path": "/index.html"
