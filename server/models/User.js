@@ -26,10 +26,22 @@ const userSchema = new mongoose.Schema(
     razorpayFundAccountId: { type: String, default: null },
     isActive: { type: Boolean, default: true },
     role: { type: String, enum: ['student', 'admin'], default: 'student' },
+    password: { type: String, default: null },
     totalEarnings: { type: Number, default: 0 },
     totalSpent: { type: Number, default: 0 },
   },
   { timestamps: true }
 );
+
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password') || !this.password) return next();
+  this.password = await bcrypt.hash(this.password, 10);
+  next();
+});
+
+userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) return false;
+  return await bcrypt.compare(enteredPassword, this.password);
+};
 
 module.exports = mongoose.model('User', userSchema);

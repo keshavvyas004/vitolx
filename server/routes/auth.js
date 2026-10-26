@@ -39,12 +39,16 @@ function setCookieAndRespond(res, user, statusCode = 200) {
 }
 
 // POST /api/auth/register
-// Firebase Phone Auth: receives idToken from frontend after OTP verified by Firebase
+// Firebase Phone Auth: receives idToken from frontend after OTP verified by Firebase + password
 router.post('/register', async (req, res) => {
   try {
-    const { enrollmentNo, name, year, department, upiId, idToken } = req.body;
+    const { enrollmentNo, name, year, department, upiId, password, idToken } = req.body;
 
-    if (!idToken) return res.status(400).json({ message: 'Firebase ID token required' });
+    if (!idToken) return res.status(400).json({ message: 'Phone verification (OTP) required' });
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+    }
 
     // Enrollment format: 26MCA10020
     if (!/^\d{2}[A-Z]{3}\d{5}$/.test(enrollmentNo?.toUpperCase())) {
@@ -70,6 +74,7 @@ router.post('/register', async (req, res) => {
       year,
       department,
       upiId: upiId || null,
+      password,
     });
 
     setCookieAndRespond(res, user, 201);
@@ -80,25 +85,60 @@ router.post('/register', async (req, res) => {
 });
 
 // POST /api/auth/login
-// Firebase Phone Auth: receives idToken from frontend after OTP verified by Firebase
+// Supports:
+// 1. Password login: { enrollmentNo, password } (Instant, no OTP required for returning students)
+// 2. OTP login fallback: { enrollmentNo, idToken } (Phone OTP verification via Firebase)
 router.post('/login', async (req, res) => {
   try {
-    const { enrollmentNo, idToken } = req.body;
+    const { enrollmentNo, password, idToken } = req.body;
 
-    if (!idToken) return res.status(400).json({ message: 'Firebase ID token required' });
+    if (!enrollmentNo) {
+      return res.status(400).json({ message: 'Enrollment number is required' });
+    }
 
-    // Verify Firebase token → get verified phone number
-    const { phone } = await verifyFirebaseToken(idToken);
-    if (!phone) return res.status(400).json({ message: 'Phone verification failed' });
+    const formattedEnrollment = enrollmentNo.toUpperCase().trim();
 
-    const user = await User.findOne({
-      enrollmentNo: enrollmentNo?.toUpperCase(),
-      phone,
-    });
-    if (!user) return res.status(404).json({ message: 'Student not found. Please register first.' });
-    if (!user.isActive) return res.status(403).json({ message: 'Account deactivated. Contact admin.' });
+    // Mode 1: Password Login
+    if (password) {
+      const user = await User.findOne({ enrollmentNo: formattedEnrollment });
+      if (!user) {
+        return res.status(404).json({ message: 'Student not found. Please register first.' });
+      }
+      if (!user.isActive) {
+        return res.status(403).json({ message: 'Account deactivated. Contact admin.' });
+      }
 
-    setCookieAndRespond(res, user);
+      // If user registered earlier without a password, set entered password on first login
+      if (!user.password) {
+        user.password = password;
+        await user.save();
+        return setCookieAndRespond(res, user);
+      }
+
+      const isMatch = await user.matchPassword(password);
+      if (!isMatch) {
+        return res.status(401).json({ message: 'Incorrect password. Please try again.' });
+      }
+
+      return setCookieAndRespond(res, user);
+    }
+
+    // Mode 2: Firebase Phone OTP Login fallback
+    if (idToken) {
+      const { phone } = await verifyFirebaseToken(idToken);
+      if (!phone) return res.status(400).json({ message: 'Phone verification failed' });
+
+      const user = await User.findOne({
+        enrollmentNo: formattedEnrollment,
+        phone,
+      });
+      if (!user) return res.status(404).json({ message: 'Student not found. Please register first.' });
+      if (!user.isActive) return res.status(403).json({ message: 'Account deactivated. Contact admin.' });
+
+      return setCookieAndRespond(res, user);
+    }
+
+    return res.status(400).json({ message: 'Password or Phone OTP required' });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ message: err.message || 'Login failed' });

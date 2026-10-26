@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ShoppingBag, Phone } from 'lucide-react'
+import { ShoppingBag, Phone, Lock, Eye, EyeOff } from 'lucide-react'
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 import api from '@/api/axios'
@@ -12,7 +12,17 @@ export default function Register() {
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
   const [step, setStep] = useState<'form' | 'otp'>('form')
-  const [form, setForm] = useState({ enrollmentNo: '', name: '', phone: '', year: '', department: '', upiId: '' })
+  const [form, setForm] = useState({
+    enrollmentNo: '',
+    name: '',
+    phone: '',
+    year: '',
+    department: '',
+    upiId: '',
+    password: '',
+    confirmPassword: '',
+  })
+  const [showPassword, setShowPassword] = useState(false)
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -49,6 +59,12 @@ export default function Register() {
     }
     if (form.phone.replace(/\D/g, '').length !== 10) {
       return setError('Enter a valid 10-digit phone number')
+    }
+    if (!form.password || form.password.length < 6) {
+      return setError('Password must be at least 6 characters long')
+    }
+    if (form.password !== form.confirmPassword) {
+      return setError('Passwords do not match')
     }
     const phoneFormatted = `+91${form.phone.replace(/\D/g, '')}`
     try {
@@ -95,7 +111,11 @@ export default function Register() {
       // Get Firebase ID token (proof that phone is verified)
       const idToken = await credential.user.getIdToken()
       // Send to backend to create account
-      const { data } = await api.post('/auth/register', { ...form, idToken })
+      const { data } = await api.post('/auth/register', {
+        ...form,
+        enrollmentNo: form.enrollmentNo.toUpperCase().trim(),
+        idToken,
+      })
       setAuth(data.user, data.accessToken)
       navigate('/home')
     } catch (err: any) {
@@ -198,6 +218,43 @@ export default function Register() {
                 </div>
               </div>
 
+              {/* Password & Confirm Password */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    <Lock className="w-3.5 h-3.5 inline mr-1 text-gray-500" />Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={form.password}
+                      onChange={e => set('password', e.target.value)}
+                      placeholder="Min 6 chars"
+                      className="w-full px-3 py-2.5 pr-8 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm</label>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.confirmPassword}
+                    onChange={e => set('confirmPassword', e.target.value)}
+                    placeholder="Repeat"
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                    required
+                  />
+                </div>
+              </div>
+
               {/* UPI ID */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -216,7 +273,7 @@ export default function Register() {
                 type="submit" disabled={loading}
                 className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors disabled:opacity-60"
               >
-                {loading ? 'Sending OTP…' : 'Send OTP to Verify'}
+                {loading ? 'Sending OTP…' : 'Verify Phone with OTP'}
               </button>
             </form>
           ) : (
