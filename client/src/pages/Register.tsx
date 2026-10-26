@@ -124,8 +124,8 @@ export default function Register() {
         setError('Wrong OTP. Please check and try again.')
       } else if (err?.code === 'auth/code-expired') {
         setError('OTP expired. Please go back and request a new one.')
-      } else if (err?.response?.data?.message) {
-        setError(err.response.data.message)
+      } else if (err?.response?.data?.message || err?.response?.data?.error) {
+        setError(err.response.data.message || err.response.data.error)
       } else if (err?.message) {
         setError(err.message)
       } else {

@@ -18,14 +18,18 @@ const app = express();
 const server = http.createServer(app);
 
 // Socket.IO
-const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
-    credentials: true,
-  },
-});
-app.set('io', io);
-initSocket(io);
+try {
+  const io = new Server(server, {
+    cors: {
+      origin: process.env.CLIENT_URL || 'http://localhost:5173',
+      credentials: true,
+    },
+  });
+  app.set('io', io);
+  initSocket(io);
+} catch (e) {
+  console.warn('⚠️ Socket.io init notice:', e.message);
+}
 
 // Middleware
 app.use(cors({
@@ -71,7 +75,7 @@ async function connectDB() {
 
 // Ensure DB is connected for serverless invocations
 app.use(async (req, res, next) => {
-  if (req.path === '/api/health') return next();
+  if (req.path === '/api/health' || req.path === '/health' || req.path.endsWith('/health')) return next();
 
   try {
     await connectDB();
@@ -85,7 +89,7 @@ app.use(async (req, res, next) => {
   }
 });
 
-// Routes
+// Routes (support both /api/* and root /* in case Vercel rewrites strip /api)
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/bids', bidRoutes);
@@ -93,8 +97,15 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/admin', adminRoutes);
 
+app.use('/auth', authRoutes);
+app.use('/products', productRoutes);
+app.use('/bids', bidRoutes);
+app.use('/orders', orderRoutes);
+app.use('/chat', chatRoutes);
+app.use('/admin', adminRoutes);
+
 // Health check
-app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
+app.get(['/api/health', '/health'], (req, res) => res.json({ status: 'ok', timestamp: new Date() }));
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ message: 'Route not found' }));
