@@ -41,6 +41,90 @@
       }
     },
     {
+      "source": "/register",
+      "destination": {
+        "service": "client",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/login",
+      "destination": {
+        "service": "client",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/home",
+      "destination": {
+        "service": "client",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/sell",
+      "destination": {
+        "service": "client",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/my-listings",
+      "destination": {
+        "service": "client",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/my-bids",
+      "destination": {
+        "service": "client",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/my-orders",
+      "destination": {
+        "service": "client",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/chat",
+      "destination": {
+        "service": "client",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/profile",
+      "destination": {
+        "service": "client",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/admin",
+      "destination": {
+        "service": "client",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/product/:id",
+      "destination": {
+        "service": "client",
+        "path": "/index.html"
+      }
+    },
+    {
+      "source": "/order-success/:id",
+      "destination": {
+        "service": "client",
+        "path": "/index.html"
+      }
+    },
+    {
       "source": "/(.*)",
       "destination": {
         "service": "client",
