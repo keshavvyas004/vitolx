@@ -47,6 +47,16 @@ const uploadsDir = (process.env.VERCEL || process.env.NOW_REGION)
   : path.join(__dirname, 'uploads');
 app.use('/uploads', express.static(uploadsDir));
 
+// Instant health check (before DB middleware)
+app.get(['/api/health', '/health', '/api', '/'], (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date(),
+    service: 'vit-olx-server',
+    dbState: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+  });
+});
+
 // Database connection for Serverless / Cloud Functions
 let dbConnectingPromise = null;
 async function connectDB() {
