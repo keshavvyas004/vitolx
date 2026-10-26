@@ -1,6 +1,18 @@
 const twilio = require('twilio');
 
-const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+// Lazy initialization — don't crash at startup if credentials are missing/invalid
+let client = null;
+function getClient() {
+  if (client) return client;
+  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    try {
+      client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+    } catch (e) {
+      console.warn('⚠️ Twilio init warning:', e.message);
+    }
+  }
+  return client;
+}
 
 // In-memory OTP store (use Redis in production)
 const otpStore = new Map(); // key: phone → { otp, expiresAt }
@@ -20,12 +32,17 @@ async function sendOTP(phone) {
   console.log('==================================================\n');
 
   try {
-    await client.messages.create({
-      body: `Your VIT OLX verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: phone,
-    });
-    console.log(`✅ Twilio SMS sent successfully to ${phone}`);
+    const c = getClient();
+    if (c) {
+      await c.messages.create({
+        body: `Your VIT OLX verification code is: ${otp}. Valid for 10 minutes. Do not share this code.`,
+        from: process.env.TWILIO_PHONE_NUMBER,
+        to: phone,
+      });
+      console.log(`✅ Twilio SMS sent successfully to ${phone}`);
+    } else {
+      console.warn('⚠️ Twilio not configured — OTP printed to console only');
+    }
   } catch (err) {
     console.warn(`⚠️ Twilio SMS notice (${err.message})`);
     console.warn(`👉 For development/testing, you can enter the OTP displayed above: ${otp}`);

@@ -56,8 +56,16 @@ router.post('/register', async (req, res) => {
     }
 
     // Verify Firebase token → get verified phone number
-    const { phone } = await verifyFirebaseToken(idToken);
-    if (!phone) return res.status(400).json({ message: 'Phone verification failed' });
+    let phone;
+    try {
+      const tokenResult = await verifyFirebaseToken(idToken);
+      phone = tokenResult?.phone;
+      if (!phone) {
+        return res.status(400).json({ message: 'Phone verification failed: phone number not found in token' });
+      }
+    } catch (tokenErr) {
+      return res.status(400).json({ message: tokenErr.message || 'Phone verification failed' });
+    }
 
     // Check for existing account
     const exists = await User.findOne({
@@ -125,8 +133,16 @@ router.post('/login', async (req, res) => {
 
     // Mode 2: Firebase Phone OTP Login fallback
     if (idToken) {
-      const { phone } = await verifyFirebaseToken(idToken);
-      if (!phone) return res.status(400).json({ message: 'Phone verification failed' });
+      let phone;
+      try {
+        const tokenResult = await verifyFirebaseToken(idToken);
+        phone = tokenResult?.phone;
+        if (!phone) {
+          return res.status(400).json({ message: 'Phone verification failed: phone number not found in token' });
+        }
+      } catch (tokenErr) {
+        return res.status(400).json({ message: tokenErr.message || 'Phone verification failed' });
+      }
 
       const user = await User.findOne({
         enrollmentNo: formattedEnrollment,

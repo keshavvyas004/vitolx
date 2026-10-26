@@ -35,29 +35,54 @@ app.use(cors({
 const path = require('path');
 app.use(express.json());
 app.use(cookieParser());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// On Vercel filesystem is read-only — serve uploads from /tmp, locally from uploads/
+const uploadsDir = (process.env.VERCEL || process.env.NOW_REGION)
+  ? '/tmp/uploads'
+  : path.join(__dirname, 'uploads');
+app.use('/uploads', express.static(uploadsDir));
 
 // Database connection for Serverless / Cloud Functions
-let isConnected = false;
+let dbConnectingPromise = null;
 async function connectDB() {
-  if (isConnected || mongoose.connection.readyState === 1) {
+  if (mongoose.connection.readyState === 1) {
     return;
   }
-  if (process.env.MONGO_URI) {
-    await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 5000 });
-    isConnected = true;
-    console.log('✅ MongoDB Atlas connected');
+  if (!process.env.MONGO_URI) {
+    console.warn('⚠️ MONGO_URI is not set in environment variables');
+    return;
   }
+  if (!dbConnectingPromise) {
+    dbConnectingPromise = mongoose
+      .connect(process.env.MONGO_URI, {
+        serverSelectionTimeoutMS: 5000,
+        bufferCommands: false,
+      })
+      .then(() => {
+        console.log('✅ MongoDB connected');
+        dbConnectingPromise = null;
+      })
+      .catch((err) => {
+        dbConnectingPromise = null;
+        throw err;
+      });
+  }
+  await dbConnectingPromise;
 }
 
 // Ensure DB is connected for serverless invocations
 app.use(async (req, res, next) => {
+  if (req.path === '/api/health') return next();
+
   try {
     await connectDB();
+    next();
   } catch (err) {
-    console.warn('DB connection notice:', err.message);
+    console.error('❌ Database connection failure:', err.message);
+    res.status(500).json({
+      message: 'Database connection failed. Please ensure MongoDB Atlas IP Access List allows 0.0.0.0/0 and MONGO_URI is set.',
+      error: err.message,
+    });
   }
-  next();
 });
 
 // Routes
@@ -86,32 +111,10 @@ const PORT = process.env.PORT || 5000;
 async function startServer() {
   try {
     if (process.env.MONGO_URI) {
-      try {
-        console.log('⏳ Connecting to MongoDB Atlas...');
-        await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 4000 });
-        console.log('✅ MongoDB Atlas connected');
-      } catch (atlasErr) {
-        console.warn('⚠️ Atlas connection failed (likely IP whitelist needed):', atlasErr.message);
-        console.log('🔄 Starting fallback local in-memory MongoDB...');
-        try {
-          const { MongoMemoryServer } = require('mongodb-memory-server');
-          const mongod = await MongoMemoryServer.create();
-          const uri = mongod.getUri();
-          await mongoose.connect(uri);
-          console.log('✅ Fallback In-Memory MongoDB connected at:', uri);
-        } catch (memErr) {
-          console.warn('⚠️ In-memory MongoDB not available:', memErr.message);
-        }
-      }
+      console.log('⏳ Connecting to MongoDB Atlas...');
+      await connectDB();
     } else {
-      try {
-        const { MongoMemoryServer } = require('mongodb-memory-server');
-        const mongod = await MongoMemoryServer.create();
-        await mongoose.connect(mongod.getUri());
-        console.log('✅ In-Memory MongoDB connected');
-      } catch (memErr) {
-        console.warn('⚠️ In-memory MongoDB not available:', memErr.message);
-      }
+      console.warn('⚠️ No MONGO_URI provided in environment variables');
     }
 
     server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

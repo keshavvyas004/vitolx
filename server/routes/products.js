@@ -1,16 +1,33 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const Product = require('../models/Product');
 const { protect } = require('../middleware/auth');
-const { uploadImages, uploadVideo, cloudinary } = require('../middleware/upload');
+const {
+  uploadImages,
+  uploadVideo,
+  uploadBufferToCloudinary,
+  hasCloudinary,
+  cloudinary,
+} = require('../middleware/upload');
 
 const router = express.Router();
 
-// Utility: parse multer files into standard URL format
-function parseFiles(files) {
-  return files.map((f) => ({
-    url: f.filename ? `/uploads/${f.filename}` : f.path,
-    publicId: f.filename || f.path,
-  }));
+// Utility: parse multer files into standard URL format (handles Cloudinary and local disk)
+async function processFiles(files) {
+  if (!files || files.length === 0) return [];
+  const results = [];
+  for (const f of files) {
+    if (f.buffer && hasCloudinary) {
+      const up = await uploadBufferToCloudinary(f.buffer);
+      results.push({ url: up.secure_url, publicId: up.public_id });
+    } else if (f.filename) {
+      results.push({ url: `/uploads/${f.filename}`, publicId: f.filename });
+    } else {
+      results.push({ url: f.path || '', publicId: f.path || '' });
+    }
+  }
+  return results;
 }
 
 // GET /api/products — browse listings (auth required)
@@ -99,7 +116,7 @@ router.post('/', protect, (req, res, next) => {
       }
     }
 
-    const images = req.files ? parseFiles(req.files) : [];
+    const images = await processFiles(req.files);
     if (images.length === 0) return res.status(400).json({ message: 'At least one image required' });
 
     const product = await Product.create({
@@ -129,10 +146,21 @@ router.post('/upload-video', protect, (req, res, next) => {
     if (err) return res.status(400).json({ message: err.message });
     next();
   });
-}, (req, res) => {
-  if (!req.file) return res.status(400).json({ message: 'No video uploaded' });
-  const url = req.file.filename ? `/uploads/${req.file.filename}` : req.file.path;
-  res.json({ url, publicId: req.file.filename || req.file.path });
+}, async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ message: 'No video uploaded' });
+
+    if (req.file.buffer && hasCloudinary) {
+      const up = await uploadBufferToCloudinary(req.file.buffer, { resource_type: 'video' });
+      return res.json({ url: up.secure_url, publicId: up.public_id });
+    }
+
+    const url = req.file.filename ? `/uploads/${req.file.filename}` : req.file.path;
+    res.json({ url, publicId: req.file.filename || req.file.path });
+  } catch (err) {
+    console.error('Upload video error:', err);
+    res.status(500).json({ message: err.message || 'Video upload failed' });
+  }
 });
 
 // PATCH /api/products/:id — update listing (seller only)
@@ -170,17 +198,40 @@ router.delete('/:id', protect, async (req, res) => {
       return res.status(400).json({ message: 'Cannot cancel a completed/pending sale' });
     }
 
-    // Delete media from Cloudinary
-    for (const img of product.images) {
-      await cloudinary.uploader.destroy(img.publicId);
+    // Delete media
+    for (const img of product.images || []) {
+      if (img?.publicId) {
+        if (hasCloudinary && cloudinary?.uploader) {
+          try {
+            await cloudinary.uploader.destroy(img.publicId);
+          } catch (e) {
+            console.warn('Cloudinary destroy image notice:', e.message);
+          }
+        }
+        try {
+          const localPath = path.join(__dirname, '../uploads', path.basename(img.publicId));
+          if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
+        } catch {}
+      }
     }
     if (product.video?.publicId) {
-      await cloudinary.uploader.destroy(product.video.publicId, { resource_type: 'video' });
+      if (hasCloudinary && cloudinary?.uploader) {
+        try {
+          await cloudinary.uploader.destroy(product.video.publicId, { resource_type: 'video' });
+        } catch (e) {
+          console.warn('Cloudinary destroy video notice:', e.message);
+        }
+      }
+      try {
+        const localPath = path.join(__dirname, '../uploads', path.basename(product.video.publicId));
+        if (fs.existsSync(localPath)) fs.unlinkSync(localPath);
+      } catch {}
     }
 
     await product.deleteOne();
     res.json({ message: 'Listing removed' });
   } catch (err) {
+    console.error('Delete product error:', err);
     res.status(500).json({ message: err.message });
   }
 });
