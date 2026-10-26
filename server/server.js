@@ -17,18 +17,20 @@ const initSocket = require('./socket/bidSocket');
 const app = express();
 const server = http.createServer(app);
 
-// Socket.IO
-try {
-  const io = new Server(server, {
-    cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:5173',
-      credentials: true,
-    },
-  });
-  app.set('io', io);
-  initSocket(io);
-} catch (e) {
-  console.warn('⚠️ Socket.io init notice:', e.message);
+// Socket.IO (active only for local persistent server, bypassed on Vercel serverless)
+if (!process.env.VERCEL) {
+  try {
+    const io = new Server(server, {
+      cors: {
+        origin: process.env.CLIENT_URL || 'http://localhost:5173',
+        credentials: true,
+      },
+    });
+    app.set('io', io);
+    initSocket(io);
+  } catch (e) {
+    console.warn('⚠️ Socket.io init notice:', e.message);
+  }
 }
 
 // Middleware
@@ -59,7 +61,6 @@ async function connectDB() {
     dbConnectingPromise = mongoose
       .connect(process.env.MONGO_URI, {
         serverSelectionTimeoutMS: 5000,
-        bufferCommands: false,
       })
       .then(() => {
         console.log('✅ MongoDB connected');
@@ -135,7 +136,8 @@ async function startServer() {
   }
 }
 
-if (require.main === module) {
+// Only listen on port in local dev (do NOT call listen in Vercel serverless)
+if (!process.env.VERCEL && !process.env.NOW_REGION && require.main === module) {
   startServer();
 }
 
