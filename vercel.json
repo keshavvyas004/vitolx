@@ -29,13 +29,22 @@
     {
       "source": "/assets/:path*",
       "destination": {
-        "service": "client"
+        "service": "client",
+        "path": "/assets/:path*"
+      }
+    },
+    {
+      "source": "/favicon.svg",
+      "destination": {
+        "service": "client",
+        "path": "/favicon.svg"
       }
     },
     {
       "source": "/(.*)",
       "destination": {
-        "service": "client"
+        "service": "client",
+        "path": "/index.html"
       }
     }
   ]
