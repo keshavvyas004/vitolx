@@ -47,7 +47,12 @@ export default function Login() {
       navigate('/home')
     } catch (err: any) {
       console.error('Password login error:', err)
-      setError(err?.response?.data?.message || err?.message || 'Login failed. Please check your credentials.')
+      const msg = typeof err?.response?.data?.message === 'string'
+        ? err.response.data.message
+        : (typeof err?.response?.data?.error === 'string'
+            ? err.response.data.error
+            : (typeof err?.message === 'string' ? err.message : 'Login failed. Please check your credentials.'))
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -122,7 +127,12 @@ export default function Login() {
       } else if (err?.code === 'auth/code-expired') {
         setError('OTP expired. Please request a new one.')
       } else {
-        setError(err?.response?.data?.message || err?.message || 'Login failed.')
+        const msg = typeof err?.response?.data?.message === 'string'
+          ? err.response.data.message
+          : (typeof err?.response?.data?.error === 'string'
+              ? err.response.data.error
+              : (typeof err?.message === 'string' ? err.message : 'Login failed.'))
+        setError(msg)
       }
     } finally {
       setLoading(false)

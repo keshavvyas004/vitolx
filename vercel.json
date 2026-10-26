@@ -13,16 +13,25 @@
   },
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": { "service": "server" }
+      "source": "/api/:path*",
+      "destination": {
+        "service": "server",
+        "path": "/api/:path*"
+      }
     },
     {
-      "source": "/uploads/(.*)",
-      "destination": { "service": "server" }
+      "source": "/uploads/:path*",
+      "destination": {
+        "service": "server",
+        "path": "/uploads/:path*"
+      }
     },
     {
-      "source": "/(.*)",
-      "destination": { "service": "client" }
+      "source": "/:path*",
+      "destination": {
+        "service": "client",
+        "path": "/:path*"
+      }
     }
   ]
 }

@@ -120,17 +120,21 @@ export default function Register() {
       navigate('/home')
     } catch (err: any) {
       console.error('Registration error:', err)
+      let msg = 'Registration failed. Please try again.'
       if (err?.code === 'auth/invalid-verification-code') {
-        setError('Wrong OTP. Please check and try again.')
+        msg = 'Wrong OTP. Please check and try again.'
       } else if (err?.code === 'auth/code-expired') {
-        setError('OTP expired. Please go back and request a new one.')
-      } else if (err?.response?.data?.message || err?.response?.data?.error) {
-        setError(err.response.data.message || err.response.data.error)
-      } else if (err?.message) {
-        setError(err.message)
-      } else {
-        setError('Registration failed. Please try again.')
+        msg = 'OTP expired. Please go back and request a new one.'
+      } else if (typeof err?.response?.data?.message === 'string') {
+        msg = err.response.data.message
+      } else if (typeof err?.response?.data?.error === 'string') {
+        msg = err.response.data.error
+      } else if (typeof err?.response?.data?.error?.message === 'string') {
+        msg = err.response.data.error.message
+      } else if (typeof err?.message === 'string') {
+        msg = err.message
       }
+      setError(msg)
     } finally {
       setLoading(false)
     }
