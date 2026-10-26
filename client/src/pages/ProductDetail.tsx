@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { MessageCircle, ShoppingCart, ChevronLeft, ChevronRight, Play, User } from 'lucide-react'
+import { MessageCircle, ShoppingCart, ChevronLeft, ChevronRight, Play, User, Trash2 } from 'lucide-react'
 import BidPanel from '@/components/BidPanel'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import api from '@/api/axios'
@@ -14,10 +14,26 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true)
   const [imgIdx, setImgIdx] = useState(0)
   const [buyLoading, setBuyLoading] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   useEffect(() => {
     api.get(`/products/${id}`).then(r => setProduct(r.data)).finally(() => setLoading(false))
   }, [id])
+
+  const handleDeleteListing = async () => {
+    if (!product) return
+    const confirmed = window.confirm(`Are you sure you want to delete "${product.title}"? This cannot be undone.`)
+    if (!confirmed) return
+
+    try {
+      setDeleteLoading(true)
+      await api.delete(`/products/${product._id}`)
+      navigate('/my-listings')
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Failed to delete listing')
+      setDeleteLoading(false)
+    }
+  }
 
   const handleBuyNow = async () => {
     if (!product) return
@@ -192,6 +208,20 @@ export default function ProductDetail() {
               <p className="text-xs text-gray-400">{product.seller.enrollmentNo}</p>
             </div>
           </div>
+
+          {/* Seller actions */}
+          {isSeller && product.status !== 'sold' && product.status !== 'payment_pending' && (
+            <div className="pt-2">
+              <button
+                onClick={handleDeleteListing}
+                disabled={deleteLoading}
+                className="flex items-center justify-center gap-2 w-full py-3 px-4 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50 border border-red-200"
+              >
+                <Trash2 className="w-4 h-4" />
+                {deleteLoading ? 'Deleting listing…' : 'Delete Listing'}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

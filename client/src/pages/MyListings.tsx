@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { Trash2 } from 'lucide-react'
 import { formatCurrency, formatDate, timeRemaining } from '@/lib/utils'
 import api from '@/api/axios'
 
@@ -11,6 +12,18 @@ export default function MyListings() {
   useEffect(() => {
     api.get('/products/seller/my-listings').then(r => setListings(r.data)).finally(() => setLoading(false))
   }, [])
+
+  const handleDelete = async (e: React.MouseEvent, id: string, title: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!window.confirm(`Are you sure you want to delete "${title}"? This cannot be undone.`)) return
+    try {
+      await api.delete(`/products/${id}`)
+      setListings(prev => prev.filter(p => p._id !== id))
+    } catch (err: any) {
+      alert(err?.response?.data?.message || 'Failed to delete listing')
+    }
+  }
 
   const filtered = listings.filter(p => filter === 'all' || p.status === filter)
 
@@ -69,9 +82,20 @@ export default function MyListings() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-semibold text-gray-900 truncate">{p.title}</p>
-                  <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full whitespace-nowrap ${statusColors[p.status] || 'bg-gray-100 text-gray-500'}`}>
-                    {p.status.replace('_', ' ')}
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full whitespace-nowrap ${statusColors[p.status] || 'bg-gray-100 text-gray-500'}`}>
+                      {p.status.replace('_', ' ')}
+                    </span>
+                    {p.status !== 'sold' && p.status !== 'payment_pending' && (
+                      <button
+                        onClick={(e) => handleDelete(e, p._id, p.title)}
+                        title="Delete listing"
+                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <p className="text-blue-600 font-bold mt-1">{formatCurrency(p.saleType === 'auction' ? p.currentBid : p.basePrice)}</p>
                 <div className="flex items-center gap-4 text-xs text-gray-400 mt-1">
