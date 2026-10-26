@@ -93,17 +93,25 @@ async function startServer() {
       } catch (atlasErr) {
         console.warn('⚠️ Atlas connection failed (likely IP whitelist needed):', atlasErr.message);
         console.log('🔄 Starting fallback local in-memory MongoDB...');
-        const { MongoMemoryServer } = require('mongodb-memory-server');
-        const mongod = await MongoMemoryServer.create();
-        const uri = mongod.getUri();
-        await mongoose.connect(uri);
-        console.log('✅ Fallback In-Memory MongoDB connected at:', uri);
+        try {
+          const { MongoMemoryServer } = require('mongodb-memory-server');
+          const mongod = await MongoMemoryServer.create();
+          const uri = mongod.getUri();
+          await mongoose.connect(uri);
+          console.log('✅ Fallback In-Memory MongoDB connected at:', uri);
+        } catch (memErr) {
+          console.warn('⚠️ In-memory MongoDB not available:', memErr.message);
+        }
       }
     } else {
-      const { MongoMemoryServer } = require('mongodb-memory-server');
-      const mongod = await MongoMemoryServer.create();
-      await mongoose.connect(mongod.getUri());
-      console.log('✅ In-Memory MongoDB connected');
+      try {
+        const { MongoMemoryServer } = require('mongodb-memory-server');
+        const mongod = await MongoMemoryServer.create();
+        await mongoose.connect(mongod.getUri());
+        console.log('✅ In-Memory MongoDB connected');
+      } catch (memErr) {
+        console.warn('⚠️ In-memory MongoDB not available:', memErr.message);
+      }
     }
 
     server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
