@@ -27,8 +27,12 @@ export default function Home() {
       if (filters.minPrice) params.set('minPrice', filters.minPrice)
       if (filters.maxPrice) params.set('maxPrice', filters.maxPrice)
       const { data } = await api.get(`/products?${params}`)
-      setProducts(data.products)
-      setTotal(data.total)
+      setProducts(Array.isArray(data?.products) ? data.products : [])
+      setTotal(typeof data?.total === 'number' ? data.total : 0)
+    } catch (err) {
+      console.error('Fetch products error:', err)
+      setProducts([])
+      setTotal(0)
     } finally {
       setLoading(false)
     }
@@ -152,7 +156,7 @@ export default function Home() {
             <div key={i} className="bg-gray-100 rounded-2xl h-72 animate-pulse" />
           ))}
         </div>
-      ) : products.length === 0 ? (
+      ) : (!products || products.length === 0) ? (
         <div className="text-center py-16 bg-white rounded-3xl border border-gray-200 p-8 shadow-xs max-w-md mx-auto my-6">
           <p className="text-5xl mb-3">🛍️</p>
           <h3 className="text-lg font-bold text-gray-900 mb-1">No items listed yet</h3>
@@ -187,7 +191,7 @@ export default function Home() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            {products.map((p: any) => <ProductCard key={p._id} product={p} />)}
+            {(products || []).map((p: any) => <ProductCard key={p._id} product={p} />)}
           </div>
 
           {/* Pagination */}

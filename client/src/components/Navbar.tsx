@@ -78,7 +78,7 @@ export default function Navbar() {
                   aria-expanded={dropdownOpen}
                 >
                   <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
-                    {getInitials(user.name)}
+                    {getInitials(user?.name)}
                   </div>
                   <ChevronDown className={`w-3.5 h-3.5 text-gray-500 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
@@ -86,8 +86,8 @@ export default function Navbar() {
                 {dropdownOpen && (
                   <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-2xl shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                     <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50 rounded-t-2xl">
-                      <p className="font-bold text-sm text-gray-900 truncate">{user.name}</p>
-                      <p className="text-xs text-blue-600 font-mono mt-0.5">{user.enrollmentNo}</p>
+                      <p className="font-bold text-sm text-gray-900 truncate">{user?.name || 'Student'}</p>
+                      <p className="text-xs text-blue-600 font-mono mt-0.5">{user?.enrollmentNo || ''}</p>
                     </div>
                     <div className="p-1.5 space-y-0.5">
                       <Link to="/my-listings" className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">

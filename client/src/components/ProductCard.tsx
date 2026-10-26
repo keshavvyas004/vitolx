@@ -83,13 +83,13 @@ export default function ProductCard({ product }: { product: Product }) {
         {/* Seller */}
         <div className="flex items-center justify-between">
           <div className="text-xs text-gray-500">
-            <span className="font-medium text-gray-700">{product.seller.name}</span>
+            <span className="font-medium text-gray-700">{product.seller?.name || 'Student'}</span>
             <span className="mx-1">·</span>
-            <span>{product.seller.year} yr</span>
+            <span>{product.seller?.year || '1st'} yr</span>
           </div>
           <div className="flex items-center gap-1 text-gray-400 text-xs">
             <Eye className="w-3 h-3" />
-            {product.views}
+            {product.views || 0}
           </div>
         </div>
       </div>
